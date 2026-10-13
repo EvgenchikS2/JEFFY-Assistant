@@ -1,0 +1,50 @@
+{
+  "name": "jeffy-voice-assistant",
+  "version": "1.1.0",
+  "description": "A Russian voice-first Windows assistant with local commands and scenarios",
+  "private": true,
+  "main": "src/electron.cjs",
+  "scripts": {
+    "start": "electron .",
+    "browser": "node src/server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "dist": "electron-builder --win portable",
+    "check": "node --check src/server.mjs && node --check public/app.js"
+  },
+  "author": "EvgenchikS",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.evgenchiks.jeffy",
+    "productName": "Jeffy Assistant",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**",
+      "public/**",
+      "scripts/windows.ps1",
+      "scripts/offline_voice.py",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "scripts/windows.ps1",
+      "scripts/offline_voice.py"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "public/logo.ico",
+      "signExecutable": false
+    },
+    "portable": {
+      "artifactName": "Jeffy-${version}-Windows.exe"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

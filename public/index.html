@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#081225"><title>Jeffy Assistant</title><link rel="icon" href="/logo.svg"><link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script></head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <a href="#home" class="brand" aria-label="Jeffy, главная"><img src="/logo.svg" alt="" width="38" height="38"><span>jeffy<span class="brand-dot">.</span><small>VOICE ASSISTANT</small></span></a>
+    <div class="nav-caption">ПРОСТРАНСТВО</div>
+    <nav aria-label="Основная навигация">
+      <a href="#home" data-nav="home"><span data-icon="orb"></span>Обзор<span class="nav-live"></span></a>
+      <a href="#commands" data-nav="commands"><span data-icon="grid"></span>Команды<span id="command-count" class="count"></span></a>
+      <a href="#scenarios" data-nav="scenarios"><span data-icon="layers"></span>Сценарии</a>
+      <a href="#history" data-nav="history"><span data-icon="clock"></span>История</a>
+    </nav>
+    <div class="nav-caption second">ПЕРСОНАЛИЗАЦИЯ</div>
+    <nav aria-label="Настройки">
+      <a href="#connections" data-nav="connections"><span data-icon="plug"></span>Подключения</a>
+      <a href="#settings" data-nav="settings"><span data-icon="settings"></span>Настройки</a>
+    </nav>
+    <div class="sidebar-bottom"><div class="local-note"><span data-icon="shield"></span><div>Твой компьютер.<br><strong>Твои правила.</strong></div></div><div class="profile"><div class="avatar">E</div><div>Личное пространство<small>Windows · Jeffy 1.1</small></div><span class="profile-dot"></span></div></div>
+  </aside>
+  <main>
+    <header class="topbar"><div class="breadcrumb">Пространство <span>/</span> <strong id="page-label">Обзор</strong></div><div class="top-actions"><span class="key-hint">Ctrl <span>+</span> Shift <span>+</span> Space</span><button id="help-button" class="icon-button" title="Как пользоваться" aria-label="Как пользоваться"><span data-icon="help"></span></button></div></header>
+    <div id="content" class="content" aria-live="polite"><div class="loading">Подключаюсь к локальному Jeffy…</div></div>
+    <footer><span><i class="tiny-dot"></i> Локальное управление Windows</span><span>Сделано, чтобы слушать тебя.</span></footer>
+  </main>
+</div>
+<dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
+<div id="toast" role="status" class="toast" hidden></div>
+</body></html>

@@ -1,0 +1,14 @@
+import {DEFAULT_COMMANDS} from '../src/commands.mjs';
+const base=process.argv[2];
+if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(base||''))throw new Error('Pass the verified local Jeffy URL.');
+const state=await(await fetch(base+'/api/bootstrap')).json();
+const post=async(route,body)=>{const response=await fetch(base+'/api/'+route,{method:'POST',headers:{'Content-Type':'application/json','X-Jeffy-Token':state.token},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error);return result;};
+if(state.settings.engine==='windows'&&!state.capabilities.recognizers.some(r=>r.culture==='ru-RU')&&state.capabilities.offlineReady)await post('settings',{...state.settings,engine:'vosk'});
+const telegram=state.commands.find(c=>c.id==='telegram');
+if(telegram)await post('commands/save',{...telegram,phrases:[...new Set([...telegram.phrases,...DEFAULT_COMMANDS.find(c=>c.id==='telegram').phrases])]});
+const preview=await post('commands/preview',{phrase:'открой телеграмм'});
+if(preview.command?.id!=='telegram')throw new Error('Telegram preview failed.');
+const launched=await post('phrase',{text:'открой телеграмм'});
+if(launched.kind!=='command')throw new Error('Phrase went to AI rather than command execution.');
+const live=await(await fetch(base+'/api/bootstrap')).json();
+console.log(JSON.stringify({engine:live.settings.engine,offlineReady:live.capabilities.offlineReady,groqKeyStillConnected:live.keys.groq.configured,telegramCommand:launched.command,status:'Windows launch operation completed'}));
