@@ -13,7 +13,7 @@ test('keys remain in server headers; Groq sends real completion schema',async()=
 test('Whisper receives Russian audio upload',async()=>{
   assert.equal(await transcribe(Buffer.from('RIFF-test'),'groq',{groq:'test'},async(url,o)=>{
     assert.equal(url,'https://api.groq.com/openai/v1/audio/transcriptions');
-    assert.equal(o.body.get('language'),'ru');assert.equal(o.body.get('model'),'whisper-large-v3-turbo');assert.equal(o.body.get('file').name,'voice.wav');
+    assert.equal(o.body.get('language'),null);assert.equal(o.body.get('model'),'whisper-large-v3-turbo');assert.equal(o.body.get('file').name,'voice.wav');
     return new Response(JSON.stringify({text:'Джеффи который час'}));
   }),'Джеффи который час');
 });

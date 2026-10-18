@@ -17,7 +17,7 @@ const assert=require('node:assert/strict');
     assert.ok(bootstrap.capabilities.voices.some(v=>v.culture==='ru-RU'));
     const html=await(await fetch(app.url)).text();assert.ok(html.includes('Jeffy Assistant'));
     const wav=await windows('speak',{text:'Джеффи который час',rate:0});
-    const post=async(endpoint,body)=>{const r=await fetch(app.url+'/api/'+endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Jeffy-Token':bootstrap.token},body:JSON.stringify(body)});const d=await r.json();assert.equal(r.status,200,d.error);return d;};
+    const post=async(endpoint,body)=>{if(endpoint==='speak'&&!body.ttsProvider)body={...body,ttsProvider:'windows'};const r=await fetch(app.url+'/api/'+endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Jeffy-Token':bootstrap.token},body:JSON.stringify(body)});const d=await r.json();assert.equal(r.status,200,d.error);return d;};
     const recognized=await post('transcribe',{audio:wav.audio});const result=await post('phrase',{text:recognized.text});assert.equal(result.kind,'command');
     const reply=await post('speak',{text:result.reply});assert.equal(Buffer.from(reply.audio,'base64').toString('ascii',0,4),'RIFF');
     console.log(JSON.stringify({packaged:true,html:true,offline:true,recognized:recognized.text,reply:result.reply,replyBytes:Buffer.from(reply.audio,'base64').length}));

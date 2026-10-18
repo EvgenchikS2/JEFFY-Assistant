@@ -8,10 +8,12 @@ import { PROVIDERS, answer, transcribe } from './providers.mjs';
 import { windows } from './windows.mjs';
 import { createOffline } from './offline.mjs';
 import { voiceReadiness } from '../public/voice-state.mjs';
+import { speechOptions } from './speech.mjs';
+import { cloudOptions, SPEECH_PROVIDERS, synthesizeCloud } from './cloud-speech.mjs';
 
 const root = fileURLToPath(new URL('../',import.meta.url));
-const defaults = { provider:'groq', model:PROVIDERS.groq.model, engine:'vosk', voice:'', rate:0, wakeWord:'джеффи', prefixOnly:false, aiEnabled:true, saveHistory:true, autoStop:true };
-export async function createServer({ port=0, dataDir=path.join(root,'data'), offlineDir=path.join(root,'offline'), runWindows=windows } = {}) {
+const defaults = { provider:'groq', model:PROVIDERS.groq.model, engine:'vosk', inputLanguage:'auto', replyLanguage:'auto', voice:'', rate:0, pitch:'medium', volume:100, ...cloudOptions({}), wakeWord:'джеффи', prefixOnly:false, aiEnabled:true, saveHistory:true, autoStop:true };
+export async function createServer({ port=0, dataDir=path.join(root,'data'), offlineDir=path.join(root,'offline'), runWindows=windows, speechFetch=fetch } = {}) {
   const offline = createOffline(offlineDir);
   await mkdir(dataDir,{recursive:true});
   const statePath = path.join(dataDir,'state.json'), secretsPath = path.join(dataDir,'keys.dpapi.json');
@@ -34,6 +36,14 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
   let capabilities;
   async function caps() { if(!capabilities) capabilities = await runWindows('capabilities').catch(()=>({voices:[],recognizers:[]})); return capabilities; }
   const keyStatus = ()=>Object.fromEntries(Object.keys(PROVIDERS).map(p=>[p,{configured:p==='ollama'||!!keys[p],saved:!!protectedKeys[p]}]));
+  async function speakText(text,settings=state.settings){
+    const native=speechOptions(settings),cloud=cloudOptions(settings);
+    if(cloud.ttsProvider==='windows'){
+      if(native.voice && !(await caps()).voices.some(v=>v.name===native.voice))throw Error('Этот голос Windows не установлен.');
+      return runWindows('speak',{text,...native},30000);
+    }
+    return synthesizeCloud(text,{...native,...cloud},keys,speechFetch);
+  }
   async function log(entry) { if(state.settings.saveHistory) {state.history.unshift({id:randomUUID(),at:new Date().toISOString(),...entry});state.history=state.history.slice(0,100);await persist();} }
   async function execute(c, confirmationToken) {
     if(busy) throw new Error('Предыдущая команда ещё выполняется.');
@@ -55,7 +65,7 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
         else if(a.type==='speak') {
           // Intermediate speech is played by Windows before subsequent steps.
           if(c.actions.at(-1)!==a) {
-            const wav = await runWindows('speak',{text:a.value,voice:state.settings.voice,rate:state.settings.rate});
+            const wav = await speakText(a.value);
             await runWindows('play',{audio:wav.audio},30000);
           } else reply = a.value;
         }
@@ -95,7 +105,7 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
         const currentCaps={...await caps(),offlineReady:offline.ready()};
         const voice=voiceReadiness(state.settings,currentCaps,keyStatus());
         if(voice.engine!==state.settings.engine){state.settings={...state.settings,engine:voice.engine};await persist();}
-        return json(200,{token, ...state,keys:keyStatus(),providers:PROVIDERS,apps:APPS,shortcuts:SHORTCUTS,capabilities:currentCaps,platform:process.platform});
+        return json(200,{token, ...state,keys:keyStatus(),providers:PROVIDERS,speechProviders:SPEECH_PROVIDERS,apps:APPS,shortcuts:SHORTCUTS,capabilities:currentCaps,platform:process.platform});
       }
       if(req.headers['x-jeffy-token']!==token) return json(403,{error:'Недействительная сессия. Перезапустите окно Jeffy.'});
       if(req.method!=='POST') return json(405,{error:'Метод не поддерживается.'});
@@ -110,10 +120,14 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
             if(!PROVIDERS[s.provider] || !['groq','gemini','windows','vosk'].includes(s.engine)) throw new Error('Неизвестный провайдер.');
             if(typeof s.model!=='string' || !/^[\w.\-/:]{1,120}$/.test(s.model)) throw new Error('Недопустимое имя модели.');
             if(typeof s.wakeWord!=='string' || !normalize(s.wakeWord) || s.wakeWord.length>30) throw new Error('Слово активации: от 1 до 30 символов.');
-            if(!Number.isInteger(+s.rate) || +s.rate < -5 || +s.rate > 5) throw new Error('Недопустимая скорость речи.');
-            if(s.voice && !(await caps()).voices.some(v=>v.name===s.voice)) throw new Error('Этот голос Windows не установлен.');
-            state.settings={provider:s.provider,model:s.model,engine:s.engine,voice:String(s.voice||''),rate:+s.rate,wakeWord:s.wakeWord, prefixOnly:!!s.prefixOnly,aiEnabled:!!s.aiEnabled,saveHistory:!!s.saveHistory,autoStop:!!s.autoStop};
-            context=[];await persist();result={settings:state.settings};break;
+            const speech=speechOptions(s,state.settings);
+            const cloud=cloudOptions(s,state.settings);
+            const inputLanguage=s.inputLanguage??state.settings.inputLanguage,replyLanguage=s.replyLanguage??state.settings.replyLanguage;
+            if(!['auto','ru','en'].includes(inputLanguage)||!['auto','ru','en'].includes(replyLanguage))throw Error('Неизвестный язык речи.');
+            if(cloud.ttsProvider==='windows' && speech.voice && !(await caps()).voices.some(v=>v.name===speech.voice)) throw new Error('Этот голос Windows не установлен.');
+            if(s.provider!==state.settings.provider || s.model!==state.settings.model)context=[];
+            state.settings={provider:s.provider,model:s.model,engine:s.engine,inputLanguage,replyLanguage,...speech,...cloud,wakeWord:s.wakeWord, prefixOnly:!!s.prefixOnly,aiEnabled:!!s.aiEnabled,saveHistory:!!s.saveHistory,autoStop:!!s.autoStop};
+            await persist();result={settings:state.settings};break;
           }
           case '/api/key': {
             if(!PROVIDERS[body.provider] || body.provider==='ollama') throw new Error('Неизвестный провайдер.');
@@ -142,15 +156,13 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
             if(typeof body.audio!=='string' || body.audio.length>7000000 || !/^[A-Za-z0-9+/=]+$/.test(body.audio)) throw new Error('Некорректная запись.');
             const audio=Buffer.from(body.audio,'base64');
             if(audio.length<44 || audio.toString('ascii',0,4)!=='RIFF' || audio.toString('ascii',8,12)!=='WAVE') throw new Error('Ожидается WAV-аудио.');
-            const text=state.settings.engine==='vosk' ? await offline.recognize(audio) : state.settings.engine==='windows' ? (await runWindows('recognize',{audio:body.audio},25000)).text : await transcribe(audio,state.settings.engine,keys);
+            if(['vosk','windows'].includes(state.settings.engine)&&state.settings.inputLanguage==='en')throw Error('Для английской речи выберите Groq Whisper или Gemini. Установленный офлайн-модуль распознаёт русский.');
+            const text=state.settings.engine==='vosk' ? await offline.recognize(audio) : state.settings.engine==='windows' ? (await runWindows('recognize',{audio:body.audio},25000)).text : await transcribe(audio,state.settings.engine,keys,undefined,state.settings.inputLanguage);
             result={text};break;
           }
           case '/api/speak': {
             if(typeof body.text!=='string' || !body.text.trim() || body.text.length>4000) throw new Error('Недопустимый текст озвучки.');
-            const voice=body.voice ?? state.settings.voice,rate=+(body.rate ?? state.settings.rate);
-            if(voice && !(await caps()).voices.some(v=>v.name===voice))throw new Error('Этот голос Windows не установлен.');
-            if(!Number.isInteger(rate)||rate < -5||rate > 5)throw new Error('Недопустимая скорость речи.');
-            result=await runWindows('speak',{text:body.text,voice,rate},30000);break;
+            result=await speakText(body.text,{...speechOptions(body,state.settings),...cloudOptions(body,state.settings)});break;
           }
           case '/api/history/clear': state.history=[];context=[];await persist();result={history:[]};break;
           default: return json(404,{error:'Неизвестный запрос.'});
@@ -159,7 +171,7 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
       } catch(e) {return json(400,{error:e.message || 'Ошибка запроса.'});}
     }
     if(req.method!=='GET') return json(405,{error:'Метод не поддерживается.'});
-    const assets = {'/':'index.html','/app.js':'app.js','/voice-state.mjs':'voice-state.mjs','/styles.css':'styles.css','/logo.svg':'logo.svg'};
+    const assets = {'/':'index.html','/app.js':'app.js','/motion.js':'motion.js','/voice-state.mjs':'voice-state.mjs','/styles.css':'styles.css','/logo.svg':'logo.svg'};
     if(!assets[url.pathname]) return json(404,{error:'Не найдено.'});
     try {
       const data = await readFile(path.join(root,'public',assets[url.pathname]));

@@ -18,7 +18,7 @@ try {
     'capabilities' {
       Add-Type -AssemblyName System.Speech
       $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-      $voices = @($synth.GetInstalledVoices() | ForEach-Object { @{ name=$_.VoiceInfo.Name; culture=$_.VoiceInfo.Culture.Name } })
+      $voices = @($synth.GetInstalledVoices() | Where-Object { $_.Enabled } | ForEach-Object { @{ name=$_.VoiceInfo.Name; culture=$_.VoiceInfo.Culture.Name; gender=$_.VoiceInfo.Gender.ToString() } })
       $recognizers = @([System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers() | ForEach-Object { @{ id=$_.Id; culture=$_.Culture.Name } })
       $synth.Dispose()
       $result = @{ voices=$voices; recognizers=$recognizers }
@@ -118,9 +118,16 @@ try {
         if ($ruVoice) { $synth.SelectVoice($ruVoice.VoiceInfo.Name) }
       }
       $synth.Rate = [Math]::Max(-5,[Math]::Min(5,[int]$inputData.rate))
+      if ($null -ne $inputData.volume) { $synth.Volume = [Math]::Max(10,[Math]::Min(100,[int]$inputData.volume)) }
       $stream = New-Object IO.MemoryStream
       $synth.SetOutputToWaveStream($stream)
-      $synth.Speak([string]$inputData.text)
+      $pitch = [string]$inputData.pitch
+      if ($pitch -in @('low','high')) {
+        $safeText = [Security.SecurityElement]::Escape([string]$inputData.text)
+        $culture = $synth.Voice.Culture.Name
+        $ssml = '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="' + $culture + '"><prosody pitch="' + $pitch + '">' + $safeText + '</prosody></speak>'
+        $synth.SpeakSsml($ssml)
+      } else { $synth.Speak([string]$inputData.text) }
       $result = @{ audio=[Convert]::ToBase64String($stream.ToArray()) }
       $synth.Dispose(); $stream.Dispose()
     }
