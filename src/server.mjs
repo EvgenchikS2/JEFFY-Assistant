@@ -12,8 +12,8 @@ import { speechOptions } from './speech.mjs';
 import { cloudOptions, SPEECH_PROVIDERS, synthesizeCloud } from './cloud-speech.mjs';
 
 const root = fileURLToPath(new URL('../',import.meta.url));
-const defaults = { provider:'groq', model:PROVIDERS.groq.model, engine:'vosk', inputLanguage:'auto', replyLanguage:'auto', voice:'', rate:0, pitch:'medium', volume:100, ...cloudOptions({}), wakeWord:'джеффи', prefixOnly:false, aiEnabled:true, saveHistory:true, autoStop:true };
-export async function createServer({ port=0, dataDir=path.join(root,'data'), offlineDir=path.join(root,'offline'), runWindows=windows, speechFetch=fetch } = {}) {
+const defaults = { uiLanguage:'ru', provider:'groq', model:PROVIDERS.groq.model, engine:'vosk', inputLanguage:'auto', replyLanguage:'auto', voice:'', rate:0, pitch:'medium', volume:100, ...cloudOptions({}), wakeWord:'джеффи', prefixOnly:false, aiEnabled:true, saveHistory:true, autoStop:true };
+export async function createServer({ port=0, dataDir=path.join(root,'data'), offlineDir=path.join(root,'offline'), runWindows=windows, speechFetch=fetch, onLanguageChange=()=>{} } = {}) {
   const offline = createOffline(offlineDir);
   await mkdir(dataDir,{recursive:true});
   const statePath = path.join(dataDir,'state.json'), secretsPath = path.join(dataDir,'keys.dpapi.json');
@@ -23,6 +23,7 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
     const commands = stored.commands.map(validateCommand); checkConflicts(commands);
     state = {settings:{...defaults,...stored.settings},commands,history:Array.isArray(stored.history)?stored.history.slice(0,100):[]};
     if(!PROVIDERS[state.settings.provider]) state.settings.provider = defaults.provider;
+    if(!['ru','en'].includes(state.settings.uiLanguage))state.settings.uiLanguage='ru';
   } catch(e) { if(e.code !== 'ENOENT') { await writeFile(path.join(dataDir,`recovery-${Date.now()}.json`),await readFile(statePath)).catch(()=>{}); console.warn('Jeffy: повреждённое состояние сохранено в recovery; загружены стандартные команды.'); } }
   let keys = {}, protectedKeys = {}, context = [], busy = false, targetWindow='';
   try { protectedKeys = JSON.parse(await readFile(secretsPath,'utf8')); for(const [p,encrypted] of Object.entries(protectedKeys)) if(PROVIDERS[p]) { try { keys[p] = (await runWindows('unprotect',{value:encrypted})).value; } catch { console.warn(`Jeffy: сохранённый ключ ${p} недоступен в этой учётной записи Windows.`); } } } catch {}
@@ -105,7 +106,7 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
         const currentCaps={...await caps(),offlineReady:offline.ready()};
         const voice=voiceReadiness(state.settings,currentCaps,keyStatus());
         if(voice.engine!==state.settings.engine){state.settings={...state.settings,engine:voice.engine};await persist();}
-        return json(200,{token, ...state,keys:keyStatus(),providers:PROVIDERS,speechProviders:SPEECH_PROVIDERS,apps:APPS,shortcuts:SHORTCUTS,capabilities:currentCaps,platform:process.platform});
+        return json(200,{token, ...state,builtinNames:Object.fromEntries(DEFAULT_COMMANDS.map(c=>[c.id,c.name])),keys:keyStatus(),providers:PROVIDERS,speechProviders:SPEECH_PROVIDERS,apps:APPS,shortcuts:SHORTCUTS,capabilities:currentCaps,platform:process.platform});
       }
       if(req.headers['x-jeffy-token']!==token) return json(403,{error:'Недействительная сессия. Перезапустите окно Jeffy.'});
       if(req.method!=='POST') return json(405,{error:'Метод не поддерживается.'});
@@ -115,6 +116,10 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');
         let result;
         switch(url.pathname) {
+          case '/api/language': {
+            if(!['ru','en'].includes(body.language))throw Error('Неизвестный язык интерфейса.');
+            state.settings={...state.settings,uiLanguage:body.language};await persist();onLanguageChange(body.language);result={settings:state.settings};break;
+          }
           case '/api/settings': {
             const s = body;
             if(!PROVIDERS[s.provider] || !['groq','gemini','windows','vosk'].includes(s.engine)) throw new Error('Неизвестный провайдер.');
@@ -123,11 +128,13 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
             const speech=speechOptions(s,state.settings);
             const cloud=cloudOptions(s,state.settings);
             const inputLanguage=s.inputLanguage??state.settings.inputLanguage,replyLanguage=s.replyLanguage??state.settings.replyLanguage;
+            const uiLanguage=s.uiLanguage??state.settings.uiLanguage;
+            if(!['ru','en'].includes(uiLanguage))throw Error('Неизвестный язык интерфейса.');
             if(!['auto','ru','en'].includes(inputLanguage)||!['auto','ru','en'].includes(replyLanguage))throw Error('Неизвестный язык речи.');
             if(cloud.ttsProvider==='windows' && speech.voice && !(await caps()).voices.some(v=>v.name===speech.voice)) throw new Error('Этот голос Windows не установлен.');
             if(s.provider!==state.settings.provider || s.model!==state.settings.model)context=[];
-            state.settings={provider:s.provider,model:s.model,engine:s.engine,inputLanguage,replyLanguage,...speech,...cloud,wakeWord:s.wakeWord, prefixOnly:!!s.prefixOnly,aiEnabled:!!s.aiEnabled,saveHistory:!!s.saveHistory,autoStop:!!s.autoStop};
-            await persist();result={settings:state.settings};break;
+            state.settings={uiLanguage,provider:s.provider,model:s.model,engine:s.engine,inputLanguage,replyLanguage,...speech,...cloud,wakeWord:s.wakeWord, prefixOnly:!!s.prefixOnly,aiEnabled:!!s.aiEnabled,saveHistory:!!s.saveHistory,autoStop:!!s.autoStop};
+            await persist();onLanguageChange(uiLanguage);result={settings:state.settings};break;
           }
           case '/api/key': {
             if(!PROVIDERS[body.provider] || body.provider==='ollama') throw new Error('Неизвестный провайдер.');
@@ -171,7 +178,7 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
       } catch(e) {return json(400,{error:e.message || 'Ошибка запроса.'});}
     }
     if(req.method!=='GET') return json(405,{error:'Метод не поддерживается.'});
-    const assets = {'/':'index.html','/app.js':'app.js','/motion.js':'motion.js','/voice-state.mjs':'voice-state.mjs','/styles.css':'styles.css','/logo.svg':'logo.svg'};
+    const assets = {'/':'index.html','/app.js':'app.js','/i18n.js':'i18n.js','/motion.js':'motion.js','/voice-state.mjs':'voice-state.mjs','/styles.css':'styles.css','/logo.svg':'logo.svg'};
     if(!assets[url.pathname]) return json(404,{error:'Не найдено.'});
     try {
       const data = await readFile(path.join(root,'public',assets[url.pathname]));
@@ -181,7 +188,7 @@ export async function createServer({ port=0, dataDir=path.join(root,'data'), off
   });
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
   server.on('close',()=>offline.close());
-  return {server,url:`http://127.0.0.1:${server.address().port}`,setTargetWindow:handle=>{targetWindow=/^\d+$/.test(String(handle))?String(handle):'';},close:()=>{offline.close();return new Promise(r=>server.close(r));}};
+  return {server,getUiLanguage:()=>state.settings.uiLanguage,url:`http://127.0.0.1:${server.address().port}`,setTargetWindow:handle=>{targetWindow=/^\d+$/.test(String(handle))?String(handle):'';},close:()=>{offline.close();return new Promise(r=>server.close(r));}};
 }
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   const app=await createServer({port:Number(process.env.JEFFY_PORT || 47831)});

@@ -2,6 +2,7 @@ const { app, BrowserWindow, globalShortcut, session, Menu, Tray, nativeImage, sh
 const path = require('node:path');
 app.commandLine.appendSwitch('force-renderer-accessibility');
 let window, tray, backend, quitting = false;
+function updateTray(){if(!tray)return;const en=backend.getUiLanguage()==='en';tray.setContextMenu(Menu.buildFromTemplate([{label:en?'Open Jeffy':'Открыть Jeffy',click:()=>{window.show();window.focus();}},{label:en?'Quit':'Завершить',click:()=>{quitting=true;app.quit();}}]));}
 if(!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance',()=>{if(window){window.show();window.focus();}});
@@ -10,7 +11,7 @@ else {
     const { windows:runWindows } = await import('./windows.mjs');
     const dataDir = app.isPackaged ? path.join(process.env.PORTABLE_EXECUTABLE_DIR || app.getPath('userData'),'data') : path.join(__dirname,'../data');
     const offlineDir = app.isPackaged ? path.join(process.env.PORTABLE_EXECUTABLE_DIR || app.getPath('userData'),'offline') : path.join(__dirname,'../offline');
-    backend = await createServer({dataDir,offlineDir});
+    backend = await createServer({dataDir,offlineDir,onLanguageChange:()=>updateTray()});
     const captureTarget=async()=>{try{const target=await runWindows('foreground');if(target.handle&&!['electron','Jeffy Assistant'].includes(target.process))backend.setTargetWindow(target.handle);}catch{}};
     await captureTarget();
     session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details)=>callback(permission==='media' && contents.getURL().startsWith(backend.url+'/') && !(details.mediaTypes||[]).includes('video')));
@@ -18,7 +19,7 @@ else {
     window = new BrowserWindow({width:1380,height:900,minWidth:900,minHeight:650,title:'Jeffy Assistant',backgroundColor:'#081225',autoHideMenuBar:true,icon:path.join(__dirname,'../public/logo.png'),webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
     ipcMain.handle('jeffy:pick-application',async(event)=>{
       if(event.sender!==window.webContents||!event.sender.getURL().startsWith(backend.url+'/'))throw new Error('Invalid application picker request');
-      const selected=await dialog.showOpenDialog(window,{title:'Выбери приложение или ярлык',properties:['openFile'],filters:[{name:'Приложения и ярлыки',extensions:['exe','lnk']}]});
+      const selected=await dialog.showOpenDialog(window,{title:backend.getUiLanguage()==='en'?'Choose an application or shortcut':'Выбери приложение или ярлык',properties:['openFile'],filters:[{name:backend.getUiLanguage()==='en'?'Applications and shortcuts':'Приложения и ярлыки',extensions:['exe','lnk']}]});
       return selected.canceled?null:selected.filePaths[0];
     });
     let targetTimer;
@@ -28,7 +29,7 @@ else {
     await window.loadURL(backend.url);
     const icon=nativeImage.createFromPath(path.join(__dirname,'../public/logo.png')).resize({width:32,height:32});
     tray = new Tray(icon);tray.setToolTip('Jeffy · Ctrl+Shift+Space');
-    tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Jeffy',click:()=>{window.show();window.focus();}},{label:'Завершить',click:()=>{quitting=true;app.quit();}}]));
+    updateTray();
     tray.on('double-click',()=>{window.show();window.focus();});
     window.on('close',e=>{if(!quitting){e.preventDefault();window.hide();}});
     const registered=globalShortcut.register('Control+Shift+Space',async()=>{await captureTarget();window.show();window.focus();window.webContents.executeJavaScript('window.jeffyToggleMicrophone?.()');});

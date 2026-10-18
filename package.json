@@ -1,6 +1,6 @@
 {
   "name": "jeffy-voice-assistant",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "A Russian voice-first Windows assistant with local commands and scenarios",
   "private": true,
   "main": "src/electron.cjs",

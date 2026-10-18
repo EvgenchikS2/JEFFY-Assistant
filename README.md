@@ -1,90 +1,157 @@
 # Jeffy Assistant
 
-Голосовой ассистент для Windows 10/11. Тёмно-синий интерфейс, голосовые команды, разговоры с ИИ и сценарии. Текстового чата нет.
+**[Русский](#русский) · [English](#english)**
 
-Jeffy вдохновлён идеей голосового управления ПК из Luxify, но это самостоятельное приложение с собственным дизайном и кодом. Проект не связан с разработчиками Luxify.
+## Русский
 
-## Запуск
+Jeffy — голосовой помощник для Windows 10/11 с тёмно-синим интерфейсом, голосовыми командами, ответами ИИ и сценариями. Текстового чата нет. Проект вдохновлён идеей голосового управления ПК и не связан с разработчиками Luxify.
 
-**Из исходников:** установите [Node.js 22+](https://nodejs.org/), затем запустите `START-JEFFY.cmd`. При первом запуске зависимости устанавливаются через `npm ci`. Для разработки:
+### Быстрый запуск
 
-```powershell
-npm ci
-npm start
-```
-
-**Браузерный режим:** `START-BROWSER.cmd`, либо `npm run browser`, затем откройте `http://127.0.0.1:47831` в Chrome или Edge. Глобальная горячая клавиша и трей доступны в приложении Windows.
-
-**Windows EXE:** `npm run dist` создаёт `dist/Jeffy-1.2.2-Windows.exe`. EXE не требует Node.js. Для офлайн-распознавания ему нужен каталог `offline` рядом с EXE и установленный Python, который использовало виртуальное окружение. При переносе на другой ПК установите офлайн-голос заново.
-
-## Языки и анимации · 1.2.2
-
-В настройках доступны **Язык распознавания** (авто / русский / English) и **Язык ответов ИИ** (как в вопросе / русский / English). Для автоматического распознавания русского и английского выберите **Groq Whisper** или **Gemini**: установленная модель Vosk и офлайн-модуль Windows рассчитаны на русский. В режиме «как в вопросе» английская речь получает английский ответ; можно попросить сменить язык.
-
-Интерфейс использует пружинные переходы, плавный индикатор навигации, последовательное появление панелей и заголовков, стеклянные слои и световое пятно голосовой панели, следующее за курсором. Движение учитывает системную настройку уменьшения анимаций. Голосовая сфера анимируется при записи, обработке и ответе; в простое непрерывная перерисовка остановлена.
-
-## Облачный голос Gemini / Groq
-
-В **Подключениях** добавьте ключ Gemini или Groq. Для сохранения после перезапуска включите «Запомнить на этом ПК». Затем в **Настройки → Голос Джеффи** выберите сервис озвучки, голос и нажмите **Послушать этот голос**. Нажмите **Сохранить настройки**, чтобы применять выбор к ответам и сценариям.
-
-- **Gemini**: русская речь и 30 голосов. По умолчанию выбран Gemini TTS; модель озвучки задаётся отдельно от модели ответов ИИ. Можно распознавать речь через Groq Whisper, получать ответы от Groq и озвучивать их Gemini.
-- **Groq Orpheus English**: шесть голосов. Русский текст разрешён экспериментально и отправляется без перевода; у английской модели возможны акцент и искажения. Длинный текст делится на части с учётом лимита модели.
-
-Ключи остаются на сервере приложения, текст для озвучки отправляется выбранному облачному сервису. Доступ и бесплатные лимиты зависят от аккаунта, модели и региона: [Gemini TTS](https://ai.google.dev/gemini-api/docs/generate-content/speech-generation), [Groq TTS](https://console.groq.com/docs/text-to-speech/orpheus). Громкость работает для обоих сервисов; темп и высота в Gemini передаются как пожелания к звучанию. В Groq эти два регулятора отключены.
-
-## Офлайн-распознавание и голос Windows
-
-Для локальной озвучки в **Настройках → Голос Джеффи → Сервис озвучки** выберите **Windows**, затем установленный голос Windows и вариант звучания: низкий, обычный или высокий. Скорость и громкость регулируются отдельно. Введите свой текст и нажмите **Послушать этот голос**, затем **Сохранить настройки**. Выбор сохраняется после перезапуска и действует на ответы и реплики сценариев. Предпрослушивание настройки не сохраняет. Высота меняется через [SSML Windows Speech](https://learn.microsoft.com/en-us/dotnet/api/system.speech.synthesis.speechsynthesizer.speakssml?view=netframework-4.8.1); выраженность эффекта зависит от голоса. Дополнительные совместимые SAPI-голоса появятся в списке после установки и перезапуска Jeffy.
-
-1. Установите [Python 3.10+](https://python.org/downloads/), включив добавление в PATH.
-2. Запустите `INSTALL-OFFLINE.cmd`. Он создаёт отдельное Python-окружение **в этой папке**, ставит Vosk и скачивает русскую модель `vosk-model-small-ru-0.22` (45 МБ, Apache 2.0).
-3. Перезапустите Jeffy и выберите **Vosk · офлайн, без ключа** в настройках.
-4. Нажмите микрофон и скажите «который час» или «открой блокнот».
-
-Модель скачивается с [официального сайта Vosk](https://alphacephei.com/vosk/models). При недоступности используется фиксированное зеркало Rhasspy; архив проверяется по SHA256. Озвучка через Windows SAPI бесплатная и локальная. Выберите установленный русский голос, например Microsoft Irina Desktop.
-
-Vosk распознаёт речь с возможными ошибками, особенно редкие имена и шумную запись. Для надёжности используйте короткие фразы без слова активации. В обычном режиме «Джеффи» необязательно. Режим обязательного слова активации проверяет его после распознавания, а не слушает микрофон постоянно.
-
-## Разговоры с ИИ голосом
-
-В **Подключениях** вставьте свой ключ и выберите провайдера. В **Настройках** включите «Отвечать на вопросы голосом».
-
-- **Groq**: рекомендуемый быстрый старт, ответы + Whisper с одним ключом. Есть бесплатные лимиты.
-- **Google Gemini**: распознаёт аудио и отвечает; free tier зависит от модели, аккаунта и региона.
-- **OpenRouter**: модель `openrouter/free` для бесплатных ответов. Для распознавания используйте Vosk или Groq.
-- **Ollama**: локальные ответы без ключа. Установите Ollama и выполните `ollama pull qwen3:4b`. Сервис должен слушать `127.0.0.1:11434`. Можно выбрать другую установленную модель в настройках.
-
-Подробные ссылки и ограничения: [docs/FREE-API.md](docs/FREE-API.md). Ключи создаёт сам пользователь в аккаунте провайдера. Наличие free tier не означает безлимитный доступ или доступность в каждом регионе.
-
-## Управление
-
-- Микрофон включается только кнопкой или `Ctrl+Shift+Space`.
-- Запись завершается вручную, после 1,3 секунды тишины или через 20 секунд. Если речь не началась, запись выключается через 8 секунд.
-- Сначала ищется включённая команда: точное совпадение, привычные варианты «открой»/«запусти», слова вежливости и небольшие ошибки распознавания. Отрицания и противоположные действия не исправляются автоматически. При двух похожих командах Jeffy просит сказать точнее. Если команда не найдена и ИИ включён, вопрос передаётся выбранному провайдеру и ответ озвучивается.
-- «Команды» → «Проверить голосовую фразу» показывает совпадение **без запуска**.
-- Кнопка ▶ запускает настоящие действия, в том числе открывает приложение или сайт.
-- Закрытие окна сворачивает приложение в трей. Для полного выхода: меню значка → «Завершить».
-
-В комплекте 17 команд: сайты, Telegram, Блокнот, Калькулятор, Проводник, рабочий стол, звук, медиаклавиши, время, блокировка и три сценария. Steam, Discord, Telegram и VS Code должны быть установлены. Некоторые медиаплееры могут не реагировать на системные медиаклавиши. Рабочий сценарий по умолчанию открывает Блокнот; его можно изменить в редакторе.
-
-Сценарии содержат до 20 действий: своё приложение EXE или ярлык LNK (кнопка «Выбрать…» или полный путь), http/https-сайт, своё сочетание клавиш (ручной ввод или «Записать»), пауза, голосовая реплика, время и блокировка ПК. Блокировка требует подтверждения в интерфейсе, в том числе при неточном совпадении фразы. Сочетания можно ввести вручную (Ctrl+Shift+S, Win+D, Alt+F4, F5) или записать кнопкой «Записать». Для комбинаций, которые перехватывает Windows, используйте ручной ввод. В приложении сочетание адресуется последнему активному внешнему окну; после запуска программы в сценарии — текущему открытому окну. Шаги выполняются последовательно; при ошибке сценарий останавливается и показывает число уже выполненных действий. Произвольные PowerShell/CMD-команды и автоматическое выполнение инструментов ИИ не поддерживаются.
-
-## Данные и публикация
-
-В исходной версии команды, настройки и локальная история находятся в `data/`. В переносимом EXE — в `data` рядом с EXE; при обычном непереносимом запуске собранного приложения — в каталоге пользователя Electron. Записи микрофона не сохраняются на диск.
-
-API-ключи по умолчанию держатся только в памяти до выхода из приложения. При выборе «Запомнить» они сохраняются в `keys.dpapi.json`, зашифрованные Windows DPAPI для текущей учётной записи. Не переносите этот файл и личную историю в публичный репозиторий. Экспорт команд содержит только команды.
-
-`data/`, `offline/`, `node_modules/`, `dist/`, EXE и локальные `.env` исключены из Git. Дополнительно проверьте содержимое пользовательских команд перед экспортом: ссылки могут содержать личную информацию. Проект не включает телеметрию или автозапуск Windows.
-
-## Проверка и сборка
+- Запустите **Jeffy-1.2.3-Windows.exe**. Node.js для переносимого EXE не требуется.
+- Для полного выхода выберите **Завершить** в меню значка в трее. Закрытие окна сворачивает Jeffy в трей.
+- Для запуска из исходников установите Node.js 22+ и выполните:
 
 ```powershell
-npm test
-npm run check
-npm run dist
+npm.cmd ci
+npm.cmd start
 ```
 
-Тесты проверяют точные и похожие фразы, отрицания, неоднозначные команды, свои приложения и сочетания клавиш, отключение команд, валидацию действий, конфликтующие фразы, сохранение, API-сессию, проверку Origin, одноразовое подтверждение и форматы запросов к провайдерам. Тесты API-провайдеров используют имитацию ответа и не доказывают доступность облака с вашим ключом.
+Также доступны `START-JEFFY.cmd` и браузерный режим `START-BROWSER.cmd`. Браузерный адрес: `http://127.0.0.1:47831`. Трей и глобальная горячая клавиша работают в приложении Windows.
 
-Исходный код — MIT. Electron, Vosk и русская модель имеют собственные лицензии. См. [THIRD-PARTY.md](THIRD-PARTY.md).
+### Язык интерфейса
+
+Выберите **Русский** или **English** в правой части верхней панели. Выбор применяется сразу и сохраняется после перезапуска. Переведены навигация, настройки, редактор команд, подсказки и сообщения приложения. Язык интерфейса задаётся отдельно от языка распознавания и ответов ИИ.
+
+Пользовательские названия, голосовые фразы и тексты сценариев не переводятся и не перезаписываются. Названия встроенных команд отображаются на выбранном языке; сами команды и их фразы сохраняются. Встроенные фразы в примерах остаются русскими, чтобы соответствовать библиотеке. Собственные фразы можно задавать на английском при использовании облачного распознавания.
+
+### Распознавание, ответы и голос
+
+В **Подключениях** добавьте свой ключ нужного провайдера. Включите **Запомнить на этом ПК**, чтобы сохранить его после выхода.
+
+В **Настройках** отдельно выбираются:
+
+- Распознавание: **Groq Whisper**, **Gemini**, **Vosk** или **Windows**.
+- Язык распознавания: **Автоматически**, **Русский** или **English**.
+- Язык ответов ИИ: **Как в вопросе**, **Всегда русский** или **Always English**.
+- Сервис озвучки и голос: **Gemini**, **Groq Orpheus** или **Windows**.
+
+Для русского и английского разговора выберите облачное распознавание, язык **Автоматически** и ответы **Как в вопросе**. Можно распознавать речь через Groq, получать ответы от Groq и озвучивать их Gemini. Для каждого используемого облачного провайдера нужен его ключ.
+
+**Gemini** предлагает 30 голосов в приложении и отдельный выбор TTS-модели. **Groq Orpheus** предлагает 6 голосов; русский текст разрешён экспериментально, возможны акцент и искажения. **Windows** использует установленные совместимые SAPI-голоса локально.
+
+Проверьте свой текст кнопкой **Послушать этот голос**, затем нажмите **Сохранить настройки**. Предпрослушивание не сохраняет изменения. Громкость работает для обоих облачных сервисов; высота и скорость в Gemini передаются как пожелания к звучанию. В Groq эти два регулятора отключены.
+
+Для локального ИИ доступна **Ollama**: установите Ollama, загрузите модель, например `ollama pull qwen3:4b`, и выберите её в настройках. OpenRouter также доступен для ответов; для распознавания и озвучки выберите соответствующие отдельные сервисы.
+
+### Офлайн-режим
+
+Установите Python 3.10+ с добавлением в PATH и запустите `INSTALL-OFFLINE.cmd`. Установщик подготовит отдельное окружение Vosk и русскую модель. Затем перезапустите Jeffy и выберите Vosk для распознавания. Для полностью локальной озвучки выберите Windows.
+
+Установленная модель Vosk и обнаруживаемый офлайн-модуль Windows рассчитаны на русский. Для английской речи выберите Groq Whisper или Gemini. При переносе EXE оставьте каталог `offline` рядом с ним; на другом ПК подготовьте офлайн-окружение заново. Каталог содержит виртуальное Python-окружение, поэтому его простой перенос не гарантирует работоспособность.
+
+### Команды и сценарии
+
+Микрофон включается кнопкой или `Ctrl+Shift+Space`. Запись заканчивается вручную, после паузы или по ограничению длительности. Поиск команд учитывает небольшие ошибки произношения и слова вежливости. Отрицания и противоположные действия не исправляются автоматически; неоднозначная фраза требует уточнения.
+
+В комплекте 17 команд. В редакторе можно выбрать собственный **EXE/LNK**, сайт HTTP/HTTPS, своё сочетание клавиш, паузу, голосовую реплику, текущее время или блокировку ПК. Сценарий содержит до 20 действий. Блокировка требует подтверждения. Шаги выполняются последовательно; при ошибке выполнение останавливается. Тест фразы показывает совпадение без запуска действий. Кнопка ▶ выполняет настоящую команду.
+
+Можно импортировать и экспортировать JSON команд. Экспорт не включает ключи и историю; проверьте личные пути и ссылки перед публикацией. Для своих английских команд добавьте соответствующие голосовые фразы в библиотеку.
+
+### Данные и доступ к облаку
+
+Настройки, команды и история хранятся в `data/`. Переносимый EXE использует `data` рядом с файлом; обычный собранный запуск — каталог пользователя Electron. До 100 записей истории хранятся локально. Аудиозаписи микрофона не сохраняются на диск.
+
+Ключи по умолчанию остаются в памяти до выхода. Сохранённые ключи шифруются Windows DPAPI для текущей учётной записи. Не публикуйте `data/` и `keys.dpapi.json`. Облачное распознавание получает отправленную запись; ИИ получает вопрос и контекст сессии; сервис озвучки получает текст ответа. Доступ и бесплатные квоты зависят от аккаунта, модели и региона. [Сервисы и ограничения](docs/FREE-API.md).
+
+### Проверка, сборка и публикация
+
+```powershell
+npm.cmd run check
+npm.cmd test
+npm.cmd run dist
+```
+
+Сборка создаёт `dist/Jeffy-1.2.3-Windows.exe`. В папке для GitHub находятся исходники; EXE прикрепляйте к **GitHub Releases**. `data/`, `offline/`, `node_modules/`, `dist/`, EXE и локальные `.env` исключены из Git. В приложении нет телеметрии или настройки автозапуска Windows.
+
+Автоматические тесты провайдеров используют тестовые ответы и сами по себе не подтверждают доступ к облаку с вашим ключом. Проверяйте подключение и предпрослушивание в приложении. Анимации учитывают системную настройку уменьшения движения; 120 FPS не заявляются как гарантированный результат.
+
+Код распространяется по MIT. Зависимости и модель имеют собственные лицензии: [THIRD-PARTY.md](THIRD-PARTY.md).
+
+---
+
+## English
+
+Jeffy is a voice-first assistant for Windows 10/11 with a dark navy interface, voice commands, AI answers and multi-step scenarios. There is no text chat. This is an independent project inspired by desktop voice control and is not affiliated with Luxify.
+
+### Quick start
+
+- Run **Jeffy-1.2.3-Windows.exe**. The portable executable does not require Node.js.
+- Closing the window minimizes Jeffy to the tray. Choose **Quit** from the tray menu to exit completely.
+- To run from source, install Node.js 22+ and use:
+
+```powershell
+npm.cmd ci
+npm.cmd start
+```
+
+You can also use `START-JEFFY.cmd`. For browser mode, run `START-BROWSER.cmd` and open `http://127.0.0.1:47831`. The tray and global keyboard shortcut are available in the Windows application.
+
+### Interface language
+
+Select **Russian** or **English** in the top-right language selector. The choice applies immediately and survives a restart. Navigation, settings, the command editor, hints and application messages are translated. Interface language is independent of speech recognition and AI answer language.
+
+Your command names, voice phrases and scenario text are preserved without translation or rewriting. Built-in command names are displayed in the selected language; their saved commands and phrases stay intact. Built-in phrase examples remain in Russian to match the command library. You can create English phrases when using cloud recognition.
+
+### Recognition, answers and voice
+
+Add your own provider keys in **Connections**. Select **Remember on this PC** to retain a key after exiting.
+
+In **Settings**, choose each component separately:
+
+- Recognition: **Groq Whisper**, **Gemini**, **Vosk** or **Windows**.
+- Recognition language: **Automatic**, **Russian** or **English**.
+- AI answer language: **Match the question**, **Always Russian** or **Always English**.
+- Voice service and voice: **Gemini**, **Groq Orpheus** or **Windows**.
+
+For Russian and English conversations, select cloud recognition, **Automatic** recognition language and **Match the question** for AI answers. You can recognize speech with Groq, get answers from Groq and synthesize speech with Gemini. Each cloud provider you use needs its own key.
+
+**Gemini** has 30 selectable voices in the app and a separate TTS model selector. **Groq Orpheus** has 6 voices; Russian text is allowed experimentally and may have an accent or distorted pronunciation. **Windows** uses compatible installed SAPI voices locally.
+
+Enter your own preview text, click **Preview this voice**, then **Save settings** to apply the choice. Previewing does not save changes. Volume works with both cloud services. Gemini receives pitch and pace preferences; Groq keeps its original pitch and speed, so those two controls are disabled.
+
+For local AI answers, install **Ollama**, download a model such as `ollama pull qwen3:4b` and select it in Settings. OpenRouter is also available for AI answers; select separate supported services for speech recognition and voice output.
+
+### Offline mode
+
+Install Python 3.10+ with PATH integration and run `INSTALL-OFFLINE.cmd`. The installer creates a dedicated Vosk environment and downloads a Russian model. Restart Jeffy and select Vosk for recognition. Select Windows for fully local speech output.
+
+The installed Vosk model and detected Windows offline recognizer are intended for Russian. Use Groq Whisper or Gemini for English recognition. Keep the `offline` directory next to the portable EXE. Set up the offline environment again on another PC: copying a Python virtual environment alone may not work.
+
+### Commands and scenarios
+
+Start the microphone with its button or `Ctrl+Shift+Space`. Recording ends manually, after a pause or at its duration limit. Matching handles small recognition errors and polite wording. Negation and opposing actions are not automatically corrected; ambiguous phrases require clarification.
+
+There are 17 bundled commands. Add your own **EXE/LNK**, HTTP/HTTPS website, keyboard shortcut, pause, spoken text, current time or PC lock action. Scenarios support up to 20 ordered actions. Locking requires confirmation. Execution stops when an action fails. Phrase preview finds a match without executing actions; the ▶ button runs a real command.
+
+Commands can be imported and exported as JSON. Exports exclude keys and history; review personal paths and URLs before publishing. Add English voice phrases to your own commands if needed.
+
+### Data and cloud access
+
+Settings, commands and history are stored in `data/`. The portable EXE uses the `data` folder beside it; a regular packaged launch uses Electron's user data directory. Up to 100 history entries stay local. Microphone recordings are not saved to disk.
+
+Keys stay in memory by default until exit. Remembered keys use Windows DPAPI encryption for the current Windows account. Never publish `data/` or `keys.dpapi.json`. Cloud recognition receives the submitted recording; the AI receives the question and session context; the speech service receives reply text. Availability and free quotas depend on your account, model and region. [Provider links and limitations](docs/FREE-API.md) (Russian).
+
+### Checks, packaging and releases
+
+```powershell
+npm.cmd run check
+npm.cmd test
+npm.cmd run dist
+```
+
+Packaging produces `dist/Jeffy-1.2.3-Windows.exe`. Keep source code in the GitHub project and attach the EXE to **GitHub Releases**. Runtime data, offline models, dependencies, build output, EXEs and local `.env` files are excluded from Git. The app includes no telemetry or Windows startup configuration.
+
+Provider unit tests use simulated responses and do not prove that a real account can access a cloud model. Test your connection and voice preview inside the app. Motion respects the system reduced-motion preference; 120 FPS is not a guaranteed result.
+
+Source code is MIT-licensed. Dependencies and the speech model have their own licenses: [THIRD-PARTY.md](THIRD-PARTY.md).
